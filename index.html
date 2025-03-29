@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulaire Multi-Étapes Vue.js v2</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.js"></script>
+    <script src="https://unpkg.com/vue-router@3.5.3/dist/vue-router.js"></script>
+    <script type="module" src="qc-components.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        #app {
+            max-width: 600px;
+            margin: 30px auto;
+            background: #fff;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-step {
+            padding: 20px;
+            border: 1px solid #eee;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            background-color: #fdfdfd;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #555;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #444;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"] {
+            width: calc(100% - 22px); /* Prend en compte le padding et la bordure */
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+        button.primary {
+            background-color: #007bff;
+            color: white;
+        }
+        button.primary:hover {
+            background-color: #0056b3;
+        }
+        button.secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        button.secondary:hover {
+            background-color: #5a6268;
+        }
+        .navigation-buttons {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .summary-data p {
+            margin-bottom: 10px;
+            border-bottom: 1px dotted #eee;
+            padding-bottom: 10px;
+        }
+         .summary-data p:last-child {
+            border-bottom: none;
+         }
+        .summary-data strong {
+            display: inline-block;
+            min-width: 100px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <h1>Formulaire d'inscription</h1>
+
+    <router-view></router-view>
+
+    </div>
+
+<script>
+
+const FORM_DATA_STORAGE_KEY = 'vue2MultiStepFormData';
+
+
+    // --- Définition des composants pour chaque étape ---
+    // Puisqu'on n'utilise pas de fichiers .vue, on définit les composants comme des objets JS
+    // avec une propriété 'template'.
+    // Note: On accède aux données partagées via `this.$root.formData`
+
+    const QcInputVue = {
+    props: ['value'],
+    template: `
+        <qc-input
+            :label="label" 
+            :placeholder="placeholder"
+            :value="value" 
+            @input="onInput" 
+            :required="required" 
+            :disabled="disabled"
+            :name="name"
+            :aide="aide"
+            :id="id"
+            :error="error"
+            :errorMsg="errorMsg"
+            :size="size"
+            :maxLength="maxLength"
+            :maxlengthTxt="maxlengthTxt"
+        >
+        </qc-input>
+    `,
+    props: ['value', 'label', 'placeholder', 'required', 'disabled', 'name', 'aide', 'id', 'error', 'errorMsg', 'size', 'maxLength', 'maxlengthTxt'],
+    methods: {
+        onInput(event) {
+            this.$emit('input', event.target.value);
+        }
+    }
+};
+
+// Register it globally or locally
+ Vue.component('qc-input-vue', QcInputVue); // Global registration before new Vue()
+
+
+    const Step1 = {
+        template: `
+            <div class="form-step">
+                <h2>Étape 1: Informations personnelles</h2>
+                <form>
+                    <qc-input-vue label="Nom :" size="lg" v-model="$root.formData.nom"></qc-input-vue>
+                    <qc-input-vue label="Courriel :" size="multi" v-model="$root.formData.courriel"></qc-input-vue>
+                    <div class="navigation-buttons">
+                        <qc-bouton @click.prevent="nextStep" label="Suivant"></qc-bouton>
+                    </div>
+                </form>
+            </div>
+        `,
+        methods: {
+            updateNom(event) {
+                // Log to see if *this* listener catches the event
+                console.log('Manual @input listener in Step1 caught event:', event);
+                // Check event.target.value - does it come from qc-input?
+                console.log('Event target value:', event.target.value);
+                // Explicitly update the root data
+                this.$root.formData.nom = event.target.value;
+            },
+            nextStep() {
+                // On pourrait ajouter une validation ici avant de naviguer
+                console.log("Validation Étape 1 (simulation)");
+                this.$router.push('/etape2');
+            }
+        }
+    };
+
+    const Step2 = {
+        template: `
+            <div class="form-step">
+                <h2>Étape 2: Coordonnées</h2>
+                 <form @submit.prevent="nextStep">
+                    <div>
+                        <label for="adresse">Adresse :</label>
+                        <input type="text" id="adresse" v-model="$root.formData.adresse">
+
+                    </div>
+                    <div>
+                        <label for="telephone">Téléphone :</label>
+                        <input type="tel" id="telephone" v-model="$root.formData.telephone">
+                    </div>
+                    <div class="navigation-buttons">
+                        <qc-bouton @click.prevent="prevStep" label="Précédent" type="secondaire"></qc-bouton>
+                        <qc-bouton @click.prevent="nextStep" label="Suivant"></qc-bouton>
+                    </div>
+                </form>
+            </div>
+        `,
+        methods: {
+            prevStep() {
+                this.$router.push('/'); // Retour à l'étape 1 (route racine)
+            },
+            nextStep() {
+                console.log("Validation Étape 2 (simulation)");
+                this.$router.push('/etape3');
+            }
+        }
+    };
+
+    const Step3 = {
+        template: `
+            <div class="form-step">
+                <h2>Étape 3: Résumé et Soumission</h2>
+                <div class="summary-data">
+                    <h3>Veuillez vérifier vos informations :</h3>
+                    <p><strong>Nom :</strong> {{ $root.formData.nom }}</p>
+                    <p><strong>Email :</strong> {{ $root.formData.email }}</p>
+                    <p><strong>Adresse :</strong> {{ $root.formData.adresse || 'Non fournie' }}</p>
+                    <p><strong>Téléphone :</strong> {{ $root.formData.telephone || 'Non fourni' }}</p>
+                </div>
+                <div class="navigation-buttons">
+                     <button type="button" @click="prevStep" class="secondary">&laquo; Précédent</button>
+                     <button type="button" @click="submitForm" class="primary">Soumettre le formulaire</button>
+                </div>
+            </div>
+        `,
+        methods: {
+            prevStep() {
+                this.$router.push('/etape2'); // Retour à l'étape 2
+            },
+            submitForm() {
+                console.log("Formulaire soumis !");
+                console.log("Données finales :", JSON.stringify(this.$root.formData, null, 2));
+                alert("Formulaire soumis avec succès ! Vérifiez la console pour les données.");
+                // Ici, vous enverriez normalement les données à un serveur
+                // Ex: fetch('/api/submit', { method: 'POST', body: JSON.stringify(this.$root.formData) })
+
+                // Optionnel: réinitialiser le formulaire ou rediriger vers une page de remerciement
+                // Object.assign(this.$root.formData, this.$root.initialFormData); // Nécessite initialFormData dans root
+                // this.$router.push('/merci'); // Nécessite une route '/merci'
+            }
+        }
+    };
+
+     // --- Configuration du routeur ---
+
+    // 1. Définir les routes. Chaque route associe un chemin (path) à un composant.
+    const routes = [
+        { path: '/', component: Step1, name: 'etape1' }, // La route racine affiche l'étape 1
+        { path: '/etape2', component: Step2, name: 'etape2' },
+        { path: '/etape3', component: Step3, name: 'etape3' }
+        // Vous pourriez ajouter une route pour une page de remerciement ici
+        // { path: '/merci', component: { template: '<div><h2>Merci !</h2><p>Votre formulaire a été soumis.</p></div>' } }
+    ];
+
+    // 2. Créer l'instance du routeur
+    const router = new VueRouter({
+        routes // Raccourci pour `routes: routes`
+        // mode: 'history' // Optionnel: pour utiliser des URLs sans '#' (nécessite une configuration serveur)
+    });
+
+    // Fonction pour charger les données initiales depuis localStorage
+    function loadFormDataFromStorage() {
+        const defaultData = {
+            nom: '',
+            email: '',
+            adresse: '',
+            telephone: ''
+            // Ajoutez tous les champs de votre formulaire ici avec leurs valeurs par défaut
+        };
+        try {
+            const savedData = localStorage.getItem(FORM_DATA_STORAGE_KEY);
+            if (savedData) {
+                console.log('Données trouvées dans localStorage, chargement...');
+                // Fusionne les données sauvegardées avec les valeurs par défaut
+                // pour s'assurer que tous les champs existent, même si le modèle a changé.
+                return Object.assign({}, defaultData, JSON.parse(savedData));
+            }
+        } catch (e) {
+            console.error("Erreur lors du chargement ou du parsing depuis localStorage :", e);
+            // Si les données sont corrompues, on les supprime
+            localStorage.removeItem(FORM_DATA_STORAGE_KEY);
+        }
+        console.log('Aucune donnée valide dans localStorage, utilisation des valeurs par défaut.');
+        return defaultData; // Retourne les données par défaut si rien n'est trouvé ou en cas d'erreur
+    }
+
+
+    // À placer AVANT new Vue({...})
+    Vue.config.ignoredElements = ['qc-input', 'qc-bouton']; // Ignore les éléments personnalisés pour éviter les avertissements dans la console
+
+    // Création de l'instance racine de Vue
+    const app = new Vue({
+        el: '#app', // Monte l'app sur la div #app
+        router,    // Injecte le routeur
+        data: {
+            // Charge les données initiales (depuis localStorage ou par défaut)
+            formData: loadFormDataFromStorage(),
+            // Structure pour stocker les messages d'erreur des champs
+            formErrors: {
+                nom: '',
+                email: '',
+                adresse: '',
+                telephone: ''
+            }
+        },
+        watch: {
+            // Observateur pour sauvegarder formData dans localStorage à chaque modification
+            formData: {
+                handler(newValue) {
+                    console.log('Sauvegarde de formData dans localStorage...');
+                    console.log('>>> WATCHER formData TRIGGERED <<<', newValue); 
+                    try {
+                        localStorage.setItem(FORM_DATA_STORAGE_KEY, JSON.stringify(newValue));
+                    } catch (e) {
+                        console.error("Erreur localStorage (sauvegarde):", e);
+                    }
+                },
+                deep: true // Nécessaire pour détecter les changements internes à l'objet formData
+            }
+        }
+    });
+
+</script>
+
+</body>
+</html>
