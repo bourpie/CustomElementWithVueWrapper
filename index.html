@@ -119,7 +119,7 @@ const FORM_DATA_STORAGE_KEY = 'vue2MultiStepFormData';
     // avec une propriété 'template'.
     // Note: On accède aux données partagées via `this.$root.formData`
 
-    const QcInputVue = {
+const QcInputVue = {
     props: ['value'],
     template: `
         <qc-input
@@ -148,10 +148,107 @@ const FORM_DATA_STORAGE_KEY = 'vue2MultiStepFormData';
     }
 };
 
+const QcListeVue = {
+    // Props que le composant wrapper acceptera
+    props: {
+        // Pour v-model : la valeur actuelle du select
+        value: {
+            // Le type dépendra des valeurs de vos options (String, Number, etc.)
+            // Mettez 'null' ou un type plus spécifique si nécessaire
+            required: false, // Ou true si une valeur est toujours attendue
+            default: ''      // Valeur par défaut si rien n'est lié
+        },
+        // Correspond aux attributs du custom element <qc-liste>
+        label: String,
+        placeholder: {
+            type: String,
+            default: 'Sélectionner' // Valeur par défaut cohérente
+        },
+        name: String,
+        disabled: Boolean, // Pour passer :disabled="true" ou juste disabled
+        required: Boolean, // Pour passer :required="true" ou juste required
+        // Accepte les options comme un tableau JavaScript standard
+        options: {
+            type: Array,
+            required: true, // Les options sont généralement nécessaires
+            default: () => [] // Important : utiliser une fonction factory pour les objets/tableaux par défaut
+        }
+    },
+
+    // Propriété calculée pour convertir le tableau d'options en chaîne JSON
+    // que le custom element <qc-liste> attend pour son attribut 'options'
+    computed: {
+        stringifiedOptions() {
+            try {
+                // Convertit le tableau de props 'options' en une chaîne JSON
+                return JSON.stringify(this.options);
+            } catch (e) {
+                console.error("Erreur lors de la conversion des options pour qc-liste:", e, this.options);
+                return '[]'; // Retourne une chaîne de tableau vide en cas d'erreur
+            }
+        }
+    },
+
+    methods: {
+        // Gère l'événement 'input' émis par <qc-liste>
+        // C'est cet événement que v-model écoute par défaut dans Vue 2 sur les composants/éléments
+        onInput(event) {
+            // event.target.value contient la nouvelle valeur sélectionnée
+            const newValue = event.target.value;
+            console.log('QcListeVue received input:', newValue);
+
+            // Émet l'événement 'input' vers le composant parent,
+            // ce qui met à jour la variable liée via v-model.
+            this.$emit('input', newValue);
+        },
+
+        // Optionnel : si vous voulez aussi propager l'événement 'select' détaillé
+        onSelect(event) {
+             console.log('QcListeVue received select event detail:', event.detail);
+             this.$emit('select', event.detail);
+        },
+         // Optionnel : si vous voulez aussi propager l'événement 'change' standard
+         onChange(event) {
+             console.log('QcListeVue received change event:', event.target.value);
+             this.$emit('change', event.target.value); // Émet l'événement change standard
+         }
+    },
+
+    // Le template du wrapper rend simplement le custom element <qc-liste>
+    // en liant les props du wrapper aux attributs correspondants du custom element.
+    template: `
+        <qc-liste
+            :label="label"
+            :placeholder="placeholder"
+            :name="name"
+            :disabled="disabled"
+            :required="required"
+            :options="stringifiedOptions"  
+            :value="value"                 
+            @input="onInput"               
+            @select="onSelect"             
+            @change="onChange"             
+        >
+           
+        </qc-liste>
+    `
+    /*
+     * Notes importantes sur le template :
+     * 1. :options="stringifiedOptions" : On lie la propriété calculée qui contient la chaîne JSON.
+     * 2. :value="value" : On lie la prop 'value' (venant de v-model) à l'attribut 'value'
+     * du custom element pour que sa valeur initiale soit correcte et qu'il se mette
+     * à jour si la variable v-model change depuis l'extérieur.
+     * 3. @input="onInput" : On écoute l'événement 'input' émis par <qc-liste> (qui est
+     * fait pour la compatibilité v-model) et on le traite dans notre méthode onInput.
+     * 4. @select="onSelect" : On écoute l'événement 'select' personnalisé (si on veut les détails).
+     * 5. @change="onChange" : On écoute l'événement 'change' standard (si nécessaire).
+     */
+};
+
 // Register it globally or locally
  Vue.component('qc-input-vue', QcInputVue); // Global registration before new Vue()
 
-
+ Vue.component('qc-liste-vue', QcListeVue); // Global registration before new Vue()
     const Step1 = {
         template: `
             <div class="form-step">
@@ -159,6 +256,17 @@ const FORM_DATA_STORAGE_KEY = 'vue2MultiStepFormData';
                 <form>
                     <qc-input-vue label="Nom :" size="lg" v-model="$root.formData.nom"></qc-input-vue>
                     <qc-input-vue label="Courriel :" size="multi" v-model="$root.formData.courriel"></qc-input-vue>
+
+                    <qc-liste-vue
+               label="Pays (via Wrapper)"
+               name="pays_wrapper"
+               placeholder="Choisissez un pays..."
+               :options="$root.listePays"   
+               v-model="$root.formData.pays" 
+               required
+           >
+           </qc-liste-vue>
+
                     <div class="navigation-buttons">
                         <qc-bouton @click.prevent="nextStep" label="Suivant"></qc-bouton>
                     </div>
@@ -272,7 +380,8 @@ const FORM_DATA_STORAGE_KEY = 'vue2MultiStepFormData';
             nom: '',
             email: '',
             adresse: '',
-            telephone: ''
+            telephone: '',
+            pays: ''
             // Ajoutez tous les champs de votre formulaire ici avec leurs valeurs par défaut
         };
         try {
@@ -294,7 +403,7 @@ const FORM_DATA_STORAGE_KEY = 'vue2MultiStepFormData';
 
 
     // À placer AVANT new Vue({...})
-    Vue.config.ignoredElements = ['qc-input', 'qc-bouton']; // Ignore les éléments personnalisés pour éviter les avertissements dans la console
+    Vue.config.ignoredElements = ['qc-input', 'qc-bouton', 'qc-liste']; // Ignore les éléments personnalisés pour éviter les avertissements dans la console
 
     // Création de l'instance racine de Vue
     const app = new Vue({
@@ -309,7 +418,14 @@ const FORM_DATA_STORAGE_KEY = 'vue2MultiStepFormData';
                 email: '',
                 adresse: '',
                 telephone: ''
-            }
+            },
+             listePays: [
+                   { value: "ca", label: "Canada" },
+                   { value: "fr", label: "France" },
+                   { value: "be", label: "Belgique" },
+                   { value: "ch", label: "Suisse" },
+                   { value: "us", label: "États-Unis" }
+               ]
         },
         watch: {
             // Observateur pour sauvegarder formData dans localStorage à chaque modification
